@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tip Split">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
+  <title>Tip Splitter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:   #2D6A4F;
+      --green2:  #40916C;
+      --mint:    #74C69D;
+      --bg:      #F2F4F3;
+      --card:    #FFFFFF;
+      --border:  #E0E5E2;
+      --text:    #1B2B23;
+      --muted:   #6B7C73;
+      --red:     #D62839;
+      --safe:    env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body { height: 100%; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--text); }
+
+    /* ── Layout ── */
+    #app { display: flex; flex-direction: column; height: 100%; }
+    #header {
+      background: var(--green);
+      color: #fff;
+      padding: 14px 16px 12px;
+      padding-top: calc(14px + env(safe-area-inset-top, 0px));
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 10;
+    }
+    #header h1 { font-size: 18px; font-weight: 700; letter-spacing: .3px; }
+    #header .subtitle { font-size: 12px; opacity: .75; margin-top: 1px; }
+
+    #content { flex: 1; overflow-y: auto; padding: 12px 12px 0; }
+
+    /* ── Bottom Nav ── */
+    #nav {
+      display: flex;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      padding-bottom: var(--safe);
+    }
+    .nav-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 8px 0 6px; border: none; background: none; cursor: pointer;
+      color: var(--muted); font-size: 10px; font-weight: 500; gap: 3px;
+      transition: color .15s;
+    }
+    .nav-btn svg { width: 22px; height: 22px; }
+    .nav-btn.active { color: var(--green2); }
+
+    /* ── Tabs ── */
+    .tab { display: none; }
+    .tab.active { display: block; }
+
+    /* ── Week nav ── */
+    .week-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--card); border-radius: 12px; padding: 10px 14px;
+      margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .week-nav button {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      width: 36px; height: 36px; font-size: 18px; cursor: pointer; color: var(--green);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .week-nav .week-label { font-size: 13px; font-weight: 600; text-align: center; line-height: 1.4; }
+    .week-nav .week-label span { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
+
+    /* ── Day card ── */
+    .day-card {
+      background: var(--card); border-radius: 12px; margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden;
+    }
+    .day-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; cursor: pointer; user-select: none;
+    }
+    .day-name { font-weight: 700; font-size: 15px; }
+    .day-date { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .day-badge {
+      font-size: 11px; color: var(--muted); background: var(--bg);
+      border-radius: 20px; padding: 3px 9px; font-weight: 500;
+    }
+    .day-badge.has-data { color: var(--green2); background: #E8F5EE; }
+    .day-body { border-top: 1px solid var(--border); }
+
+    /* ── Shift section ── */
+    .shift-section { padding: 12px 14px; }
+    .shift-section + .shift-section { border-top: 1px solid var(--border); }
+    .shift-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .8px; color: var(--muted); margin-bottom: 10px;
+    }
+    .tip-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .tip-field { flex: 1; }
+    .tip-field label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
+    .tip-field input {
+      width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 15px; background: var(--bg); color: var(--text);
+      -webkit-appearance: none;
+    }
+    .tip-field input:focus { outline: none; border-color: var(--mint); }
+
+    .staff-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .staff-chip {
+      display: flex; align-items: center; gap: 5px;
+      padding: 6px 11px; border-radius: 20px; border: 1.5px solid var(--border);
+      background: var(--bg); cursor: pointer; user-select: none;
+      font-size: 13px; font-weight: 500; transition: all .15s;
+    }
+    .staff-chip.selected { background: var(--green2); border-color: var(--green2); color: #fff; }
+    .staff-chip input { display: none; }
+
+    .save-btn {
+      width: 100%; padding: 9px; border: none; border-radius: 8px;
+      background: var(--green); color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background .15s; display: flex; align-items: center;
+      justify-content: center; gap: 6px;
+    }
+    .save-btn:active { background: var(--green2); }
+    .save-btn.saved { background: #40916C; }
+
+    /* ── Summary ── */
+    .summary-card {
+      background: var(--card); border-radius: 12px; overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06); margin-bottom: 12px;
+    }
+    .summary-header {
+      background: var(--green); color: #fff; padding: 14px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .summary-header h2 { font-size: 15px; font-weight: 700; }
+    .summary-header .wk { font-size: 12px; opacity: .8; }
+    .summary-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 16px; border-bottom: 1px solid var(--border);
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-name { font-size: 15px; font-weight: 600; }
+    .summary-shifts { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .summary-amount { font-size: 20px; font-weight: 700; color: var(--green2); }
+    .summary-empty { padding: 24px; text-align: center; color: var(--muted); font-size: 14px; }
+
+    .print-btn {
+      width: 100%; padding: 13px; border: 1.5px solid var(--green); border-radius: 12px;
+      background: var(--card); color: var(--green); font-size: 15px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    /* ── History ── */
+    .history-item {
+      background: var(--card); border-radius: 12px; padding: 14px 16px;
+      margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer;
+    }
+    .history-item:active { opacity: .8; }
+    .history-label { font-size: 14px; font-weight: 600; }
+    .history-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .history-arrow { color: var(--muted); font-size: 18px; }
+    .history-empty { text-align: center; color: var(--muted); font-size: 14px; padding: 40px 0; }
+
+    /* ── Staff management ── */
+    .staff-list-item {
+      background: var(--card); border-radius: 12px; padding: 13px 16px;
+      margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .staff-list-name { font-size: 15px; font-weight: 600; }
+    .remove-btn {
+      background: #FEE2E2; color: var(--red); border: none; border-radius: 8px;
+      padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .add-staff-form {
+      display: flex; gap: 8px; margin-bottom: 16px;
+    }
+    .add-staff-form input {
+      flex: 1; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+      font-size: 15px; background: var(--card);
+    }
+    .add-staff-form input:focus { outline: none; border-color: var(--mint); }
+    .add-staff-form button {
+      padding: 11px 16px; background: var(--green); color: #fff;
+      border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+    }
+
+    /* ── Section title ── */
+    .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .8px; color: var(--muted); margin-bottom: 10px; }
+
+    /* ── Print styles ── */
+    @media print {
+      #app { display: block; }
+      #header, #nav, .print-btn, .week-nav, #tab-week, #tab-history, #tab-staff { display: none !important; }
+      #tab-summary { display: block !important; }
+      body { background: #fff; }
+      .summary-card { box-shadow: none; border: 1px solid #ccc; }
+      .summary-header { background: #2D6A4F !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .print-hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <div id="header">
+    <div>
+      <div id="header-title">Tip Splitter</div>
+      <div class="subtitle" id="header-sub">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div id="content">
+
+    <!-- ── TAB: WEEK ── -->
+    <div id="tab-week" class="tab active">
+      <div class="week-nav">
+        <button id="prev-week">&#8249;</button>
+        <div class="week-label" id="week-label">Loading…<span id="week-sub"></span></div>
+        <button id="next-week">&#8250;</button>
+      </div>
+      <div id="days-container"></div>
+    </div>
+
+    <!-- ── TAB: SUMMARY ── -->
+    <div id="tab-summary" class="tab">
+      <button class="print-btn" onclick="window.print()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Print / Share Summary
+      </button>
+      <div id="summary-container"></div>
+    </div>
+
+    <!-- ── TAB: HISTORY ── -->
+    <div id="tab-history" class="tab">
+      <p class="section-title">Past Weeks</p>
+      <div id="history-container"></div>
+    </div>
+
+    <!-- ── TAB: STAFF ── -->
+    <div id="tab-staff" class="tab">
+      <p class="section-title">Add Staff</p>
+      <div class="add-staff-form">
+        <input type="text" id="new-staff-name" placeholder="Name…" maxlength="50">
+        <button onclick="addStaff()">Add</button>
+      </div>
+      <p class="section-title">Current Staff</p>
+      <div id="staff-list-container"></div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- Bottom Nav -->
+  <nav id="nav">
+    <button class="nav-btn active" data-tab="week" onclick="switchTab('week', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Week
+    </button>
+    <button class="nav-btn" data-tab="summary" onclick="switchTab('summary', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Summary
+    </button>
+    <button class="nav-btn" data-tab="history" onclick="switchTab('history', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      History
+    </button>
+    <button class="nav-btn" data-tab="staff" onclick="switchTab('staff', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Staff
+    </button>
+  </nav>
+
+</div><!-- /app -->
+
+<script>
+  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  let currentWeekStart = getMonday(new Date());
+  let staffList = [];
+  let weekData = {};
+
+  // ── Utilities ──────────────────────────────────────────────────────────────
+
+  function getMonday(d) {
+    const dt = new Date(d);
+    const day = dt.getDay();
+    const diff = (day === 0 ? -6 : 1 - day);
+    dt.setDate(dt.getDate() + diff);
+    dt.setHours(0, 0, 0, 0);
+    return dt;
+  }
+
+  function dateToStr(d) {
+    return d.toISOString().slice(0, 10);
+  }
+
+  function strToDate(s) {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  function fmtDate(d) {
+    return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  }
+
+  function fmtMoney(n) {
+    return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function fmtWeekRange(monday) {
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    return `${fmtDate(monday)} – ${fmtDate(sunday)}`;
+  }
+
+  // ── Tab switching ──────────────────────────────────────────────────────────
+
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+
+    if (name === 'summary') loadSummary(dateToStr(currentWeekStart));
+    if (name === 'history') loadHistory();
+    if (name === 'staff') renderStaffManagement();
+
+    updateHeader(name);
+  }
+
+  function updateHeader(tab) {
+    const titles = { week: 'Tip Splitter', summary: 'Summary', history: 'History', staff: 'Staff' };
+    document.getElementById('header-title').textContent = titles[tab] || 'Tip Splitter';
+    if (tab === 'week' || tab === 'summary') {
+      document.getElementById('header-sub').textContent = fmtWeekRange(currentWeekStart);
+    } else {
+      document.getElementById('header-sub').textContent = '';
+    }
+  }
+
+  // ── Week navigation ────────────────────────────────────────────────────────
+
+  document.getElementById('prev-week').addEventListener('click', () => {
+    currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+    loadWeek();
+  });
+
+  document.getElementById('next-week').addEventListener('click', () => {
+    const next = new Date(currentWeekStart);
+    next.setDate(next.getDate() + 7);
+    if (next <= getMonday(new Date())) {
+      currentWeekStart = next;
+      loadWeek();
+    }
+  });
+
+  // ── Load week ──────────────────────────────────────────────────────────────
+
+  async function loadWeek() {
+    const ws = dateToStr(currentWeekStart);
+
+    // Update header + nav label
+    const range = fmtWeekRange(currentWeekStart);
+    document.getElementById('week-label').childNodes[0].textContent = range;
+    document.getElementById('week-sub').textContent = '';
+    document.getElementById('header-sub').textContent = range;
+
+    // Next button: disable if this week
+    const isCurrentWeek = dateToStr(getMonday(new Date())) === ws;
+    document.getElementById('next-week').style.opacity = isCurrentWeek ? '0.3' : '1';
+    document.getElementById('next-week').disabled = isCurrentWeek;
+
+    const res = await fetch(`/api/week/${ws}`);
+    weekData = await res.json();
+    renderDays();
+  }
+
+  // ── Render days ────────────────────────────────────────────────────────────
+
+  function renderDays() {
+    const container = document.getElementById('days-container');
+    container.innerHTML = '';
+    const ws = dateToStr(currentWeekStart);
+
+    DAYS.forEach((day, idx) => {
+      const dayDate = new Date(currentWeekStart);
+      dayDate.setDate(dayDate.getDate() + idx);
+
+      const lunchKey = `${idx}_lunch`;
+      const dinnerKey = `${idx}_dinner`;
+      const lunchData = weekData[lunchKey] || { cash_tips: '', card_tips: '', staff: [] };
+      const dinnerData = weekData[dinnerKey] || { cash_tips: '', card_tips: '', staff: [] };
+
+      const hasData = weekData[lunchKey] || weekData[dinnerKey];
+
+      const card = document.createElement('div');
+      card.className = 'day-card';
+      card.id = `day-${idx}`;
+
+      const totalForDay = (() => {
+        let t = 0;
+        if (weekData[lunchKey]) t += (weekData[lunchKey].cash_tips || 0) + (weekData[lunchKey].card_tips || 0);
+        if (weekData[dinnerKey]) t += (weekData[dinnerKey].cash_tips || 0) + (weekData[dinnerKey].card_tips || 0);
+        return t;
+      })();
+
+      card.innerHTML = `
+        <div class="day-header" onclick="toggleDay(${idx})">
+          <div>
+            <div class="day-name">${day}</div>
+            <div class="day-date">${fmtDate(dayDate)}</div>
+          </div>
+          <div class="day-badge ${hasData ? 'has-data' : ''}">
+            ${hasData ? fmtMoney(totalForDay) : 'No data'}
+          </div>
+        </div>
+        <div class="day-body" id="day-body-${idx}" style="display:none">
+          ${renderShiftSection(idx, 'lunch', lunchData, ws)}
+          ${renderShiftSection(idx, 'dinner', dinnerData, ws)}
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  function toggleDay(idx) {
+    const body = document.getElementById(`day-body-${idx}`);
+    body.style.display = body.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function renderShiftSection(dayIdx, shiftType, data, ws) {
+    const label = shiftType === 'lunch' ? '🍽 Lunch' : '🌙 Dinner';
+    const key = `${dayIdx}_${shiftType}`;
+
+    const staffChips = staffList.map(s => {
+      const selected = data.staff.includes(s.id) ? 'selected' : '';
+      return `<label class="staff-chip ${selected}" id="chip-${key}-${s.id}">
+        <input type="checkbox" value="${s.id}" ${data.staff.includes(s.id) ? 'checked' : ''}
+          onchange="toggleChip(this, '${key}', ${s.id})">
+        ${s.name}
+      </label>`;
+    }).join('');
+
+    return `
+      <div class="shift-section">
+        <div class="shift-title">${label}</div>
+        <div class="tip-row">
+          <div class="tip-field">
+            <label>Cash Tips ($)</label>
+            <input type="number" min="0" step="0.01" placeholder="0.00"
+              id="cash-${key}" value="${data.cash_tips || ''}">
+          </div>
+          <div class="tip-field">
+            <label>Card Tips ($)</label>
+            <input type="number" min="0" step="0.01" placeholder="0.00"
+              id="card-${key}" value="${data.card_tips || ''}">
+          </div>
+        </div>
+        <div class="staff-grid" id="staff-${key}">${staffChips}</div>
+        <button class="save-btn" id="savebtn-${key}" onclick="saveShift(${dayIdx}, '${shiftType}', '${ws}')">
+          Save
+        </button>
+      </div>
+    `;
+  }
+
+  function toggleChip(checkbox, key, staffId) {
+    const chip = document.getElementById(`chip-${key}-${staffId}`);
+    chip.classList.toggle('selected', checkbox.checked);
+  }
+
+  async function saveShift(dayIdx, shiftType, ws) {
+    const key = `${dayIdx}_${shiftType}`;
+    const cashEl = document.getElementById(`cash-${key}`);
+    const cardEl = document.getElementById(`card-${key}`);
+    const staffInputs = document.querySelectorAll(`#staff-${key} input[type=checkbox]:checked`);
+    const staffIds = Array.from(staffInputs).map(i => parseInt(i.value));
+
+    const btn = document.getElementById(`savebtn-${key}`);
+    btn.textContent = 'Saving…';
+    btn.disabled = true;
+
+    await fetch('/api/shift', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        week_start: ws,
+        day: dayIdx,
+        shift_type: shiftType,
+        cash_tips: parseFloat(cashEl.value) || 0,
+        card_tips: parseFloat(cardEl.value) || 0,
+        staff_ids: staffIds
+      })
+    });
+
+    btn.textContent = '✓ Saved';
+    btn.classList.add('saved');
+    setTimeout(() => {
+      btn.textContent = 'Save';
+      btn.classList.remove('saved');
+      btn.disabled = false;
+    }, 1500);
+
+    // Refresh weekData for badge update
+    const res = await fetch(`/api/week/${ws}`);
+    weekData = await res.json();
+    // Update badge only
+    const lunchKey = `${dayIdx}_lunch`;
+    const dinnerKey = `${dayIdx}_dinner`;
+    const hasData = weekData[lunchKey] || weekData[dinnerKey];
+    let total = 0;
+    if (weekData[lunchKey]) total += (weekData[lunchKey].cash_tips || 0) + (weekData[lunchKey].card_tips || 0);
+    if (weekData[dinnerKey]) total += (weekData[dinnerKey].cash_tips || 0) + (weekData[dinnerKey].card_tips || 0);
+    const badge = document.querySelector(`#day-${dayIdx} .day-badge`);
+    if (badge) {
+      badge.textContent = hasData ? fmtMoney(total) : 'No data';
+      badge.className = `day-badge ${hasData ? 'has-data' : ''}`;
+    }
+  }
+
+  // ── Summary ────────────────────────────────────────────────────────────────
+
+  async function loadSummary(ws) {
+    const res = await fetch(`/api/summary/${ws}`);
+    const data = await res.json();
+    renderSummary(data);
+  }
+
+  function renderSummary(data) {
+    const container = document.getElementById('summary-container');
+    const monday = strToDate(data.week_start);
+    const range = fmtWeekRange(monday);
+
+    const rows = data.staff.filter(s => s.amount > 0).map(s => `
+      <div class="summary-row">
+        <div>
+          <div class="summary-name">${s.name}</div>
+          <div class="summary-shifts">${s.shifts} shift${s.shifts !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="summary-amount">${fmtMoney(s.amount)}</div>
+      </div>
+    `).join('');
+
+    const total = data.staff.reduce((acc, s) => acc + s.amount, 0);
+
+    container.innerHTML = `
+      <div class="summary-card">
+        <div class="summary-header">
+          <h2>Weekly Tips Summary</h2>
+          <span class="wk">${range}</span>
+        </div>
+        ${rows || '<div class="summary-empty">No data for this week yet.</div>'}
+        ${rows ? `<div class="summary-row" style="background:#F8FBF9">
+          <div><div class="summary-name" style="color:var(--muted)">Total Distributed</div></div>
+          <div class="summary-amount" style="color:var(--text)">${fmtMoney(total)}</div>
+        </div>` : ''}
+      </div>
+    `;
+    document.getElementById('header-sub').textContent = range;
+  }
+
+  // ── History ────────────────────────────────────────────────────────────────
+
+  async function loadHistory() {
+    const res = await fetch('/api/weeks');
+    const weeks = await res.json();
+    const container = document.getElementById('history-container');
+
+    if (!weeks.length) {
+      container.innerHTML = '<div class="history-empty">No previous weeks yet.</div>';
+      return;
+    }
+
+    container.innerHTML = weeks.map(ws => {
+      const monday = strToDate(ws);
+      const range = fmtWeekRange(monday);
+      const isCurrentWeek = dateToStr(getMonday(new Date())) === ws;
+      return `
+        <div class="history-item" onclick="openHistoryWeek('${ws}')">
+          <div>
+            <div class="history-label">${range}</div>
+            <div class="history-sub">${isCurrentWeek ? 'Current week' : 'Past week'}</div>
+          </div>
+          <div class="history-arrow">›</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function openHistoryWeek(ws) {
+    currentWeekStart = strToDate(ws);
+    await loadWeek();
+    // Switch to summary for that week
+    const summaryBtn = document.querySelector('[data-tab="summary"]');
+    switchTab('summary', summaryBtn);
+    loadSummary(ws);
+  }
+
+  // ── Staff management ───────────────────────────────────────────────────────
+
+  async function fetchStaff() {
+    const res = await fetch('/api/staff');
+    staffList = await res.json();
+  }
+
+  function renderStaffManagement() {
+    const container = document.getElementById('staff-list-container');
+    container.innerHTML = staffList.map(s => `
+      <div class="staff-list-item" id="staff-item-${s.id}">
+        <div class="staff-list-name">${s.name}</div>
+        <button class="remove-btn" onclick="removeStaff(${s.id})">Remove</button>
+      </div>
+    `).join('');
+  }
+
+  async function addStaff() {
+    const input = document.getElementById('new-staff-name');
+    const name = input.value.trim();
+    if (!name) return;
+    await fetch('/api/staff', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    input.value = '';
+    await fetchStaff();
+    renderStaffManagement();
+    loadWeek(); // re-render week with new staff
+  }
+
+  document.getElementById('new-staff-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addStaff();
+  });
+
+  async function removeStaff(id) {
+    if (!confirm('Remove this staff member?')) return;
+    await fetch(`/api/staff/${id}`, { method: 'DELETE' });
+    await fetchStaff();
+    renderStaffManagement();
+    loadWeek();
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+
+  async function init() {
+    await fetchStaff();
+    await loadWeek();
+    updateHeader('week');
+  }
+
+  init();
+</script>
+</body>
+</html>

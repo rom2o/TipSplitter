@@ -859,6 +859,15 @@
     }
   }
 
+  // iOS PWA viewport height fix
+  function fixHeight() {
+    document.getElementById('app').style.height = window.innerHeight + 'px';
+    const overlay = document.getElementById('pin-overlay');
+    if (overlay) overlay.style.height = window.innerHeight + 'px';
+  }
+  window.addEventListener('resize', fixHeight);
+  fixHeight();
+
   init();
 </script>
 </body>

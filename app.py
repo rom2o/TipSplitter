@@ -82,7 +82,6 @@ def check_auth():
 def login():
     pin = (request.json or {}).get('pin', '')
     if pin == APP_PIN:
-        session.permanent = True
         session['authenticated'] = True
         return jsonify({'ok': True})
     return jsonify({'error': 'Wrong PIN'}), 401

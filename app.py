@@ -373,8 +373,8 @@ def import_transactions_csv():
                     return orig
         return None
 
-    tip_col = find_col('tip amount', 'server tip', 'tips', 'tip', 'gratuity')
-    payment_col = find_col('payment type', 'payment method', 'tender type', 'card type', 'payment', 'tender')
+    tip_col = find_col('tip amount', 'server tip', 'tip', 'tips', 'gratuity')
+    payment_col = find_col('payment type', 'payment method', 'tender type', 'card brand', 'card type', 'payment', 'tender')
 
     if not tip_col:
         return jsonify({'error': f'Could not find a tip column. Columns found: {", ".join(fields.keys())}'}), 400
@@ -411,7 +411,7 @@ def import_transactions_csv():
         return None
 
     CARD_KEYWORDS = {'credit', 'card', 'visa', 'mastercard', 'amex', 'american express',
-                     'discover', 'debit', 'contactless', 'tap', 'eftpos'}
+                     'discover', 'debit', 'contactless', 'tap', 'eftpos', 'gift'}
     CASH_KEYWORDS = {'cash'}
 
     from collections import defaultdict

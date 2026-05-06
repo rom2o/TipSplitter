@@ -29,6 +29,11 @@
 
     /* ── Layout ── */
     #app { display: flex; flex-direction: column; height: 100%; }
+
+    @media (min-width: 768px) {
+      body { background: #D8E8DE; display: flex; justify-content: center; align-items: stretch; }
+      #app { max-width: 480px; width: 100%; box-shadow: 0 0 40px rgba(0,0,0,.15); }
+    }
     #header {
       background: var(--green);
       color: #fff;
@@ -220,6 +225,7 @@
       <div id="header-title">Tip Splitter</div>
       <div class="subtitle" id="header-sub">Loading…</div>
     </div>
+    <img src="/static/logo.svg" alt="JBB" style="height:36px;filter:brightness(0) invert(1);opacity:.9;">
   </div>
 
   <!-- Content -->

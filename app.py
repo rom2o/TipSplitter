@@ -19,7 +19,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-change-in-prod')
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
-APP_PIN = os.environ.get('APP_PIN', '1234')
+APP_PIN = os.environ.get('APP_PIN', '1234').strip()
 
 db = SQLAlchemy(app)
 

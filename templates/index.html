@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Tip Split">
@@ -1031,7 +1031,12 @@
 
   async function applyImport(ws) {
     const btn  = document.getElementById(`apply-btn-${ws}`);
-    const days = importResultsByWeek[ws];
+    // Recalculate week_start using the frontend's own date logic so it matches
+    // what the Week tab uses (avoids UTC vs local timezone mismatch)
+    const days = importResultsByWeek[ws].map(d => ({
+      ...d,
+      week_start: dateToStr(getMonday(strToDate(d.date)))
+    }));
     btn.textContent = 'Saving…';
     btn.disabled = true;
 

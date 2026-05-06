@@ -56,6 +56,20 @@ class DayNote(db.Model):
 
 with app.app_context():
     db.create_all()
+    # Migrate: week_start values stored as Sunday due to UTC timezone bug → shift to Monday
+    migrated = False
+    for shift in Shift.query.all():
+        ws = datetime.strptime(shift.week_start, '%Y-%m-%d').date()
+        if ws.weekday() == 6:
+            shift.week_start = (ws + timedelta(days=1)).strftime('%Y-%m-%d')
+            migrated = True
+    for note in DayNote.query.all():
+        ws = datetime.strptime(note.week_start, '%Y-%m-%d').date()
+        if ws.weekday() == 6:
+            note.week_start = (ws + timedelta(days=1)).strftime('%Y-%m-%d')
+            migrated = True
+    if migrated:
+        db.session.commit()
     if Staff.query.count() == 0:
         for name in ['Green', 'Beau', 'Julien', 'Tun', 'Beam', 'Jay']:
             db.session.add(Staff(name=name, active=True))

@@ -206,20 +206,21 @@ def get_summary(week_start):
     staff_list = Staff.query.filter_by(active=True).all()
     notes = DayNote.query.filter_by(week_start=week_start).all()
 
-    totals = {s.id: {'name': s.name, 'amount': 0.0, 'shifts': 0} for s in staff_list}
+    totals = {s.id: {'name': s.name, 'cash': 0.0, 'card': 0.0, 'shifts': 0} for s in staff_list}
 
     for shift in shifts:
         worker_ids = [ss.staff_id for ss in shift.workers]
         if not worker_ids:
             continue
-        distributable = shift.cash_tips + shift.card_tips * (1 - CARD_DEDUCTION)
-        per_person = distributable / len(worker_ids)
+        cash_per = shift.cash_tips / len(worker_ids)
+        card_per = shift.card_tips * (1 - CARD_DEDUCTION) / len(worker_ids)
         for sid in worker_ids:
             if sid in totals:
-                totals[sid]['amount'] += per_person
+                totals[sid]['cash'] += cash_per
+                totals[sid]['card'] += card_per
                 totals[sid]['shifts'] += 1
 
-    result = sorted(totals.values(), key=lambda x: -x['amount'])
+    result = sorted(totals.values(), key=lambda x: -(x['cash'] + x['card']))
     notes_list = [{'day': n.day, 'note': n.note} for n in notes if n.note]
     return jsonify({'staff': result, 'week_start': week_start, 'notes': notes_list})
 
@@ -247,18 +248,19 @@ def export_csv(week_start):
     staff_list = Staff.query.filter_by(active=True).all()
     notes = {n.day: n.note for n in DayNote.query.filter_by(week_start=week_start).all()}
 
-    totals = {s.id: {'name': s.name, 'amount': 0.0, 'shifts': 0} for s in staff_list}
+    totals = {s.id: {'name': s.name, 'cash': 0.0, 'card': 0.0, 'shifts': 0} for s in staff_list}
     day_details = {}
 
     for shift in shifts:
         worker_ids = [ss.staff_id for ss in shift.workers]
         if not worker_ids:
             continue
-        distributable = shift.cash_tips + shift.card_tips * (1 - CARD_DEDUCTION)
-        per_person = distributable / len(worker_ids)
+        cash_per = shift.cash_tips / len(worker_ids)
+        card_per = shift.card_tips * (1 - CARD_DEDUCTION) / len(worker_ids)
         for sid in worker_ids:
             if sid in totals:
-                totals[sid]['amount'] += per_person
+                totals[sid]['cash'] += cash_per
+                totals[sid]['card'] += card_per
                 totals[sid]['shifts'] += 1
 
         key = (shift.day, shift.shift_type)
@@ -280,12 +282,14 @@ def export_csv(week_start):
 
     w.writerow(['TIP SUMMARY', week_label])
     w.writerow([])
-    w.writerow(['Staff', 'Shifts Worked', 'Amount Owed'])
-    for person in sorted(totals.values(), key=lambda x: -x['amount']):
-        if person['amount'] > 0:
-            w.writerow([person['name'], person['shifts'], f"${person['amount']:.2f}"])
-    total = sum(p['amount'] for p in totals.values())
-    w.writerow(['', 'TOTAL', f"${total:.2f}"])
+    w.writerow(['Staff', 'Shifts Worked', 'Cash Owed', 'Card Owed (after 30%)', 'Total Owed'])
+    for person in sorted(totals.values(), key=lambda x: -(x['cash'] + x['card'])):
+        if person['cash'] + person['card'] > 0:
+            total_p = person['cash'] + person['card']
+            w.writerow([person['name'], person['shifts'], f"${person['cash']:.2f}", f"${person['card']:.2f}", f"${total_p:.2f}"])
+    total_cash = sum(p['cash'] for p in totals.values())
+    total_card = sum(p['card'] for p in totals.values())
+    w.writerow(['', 'TOTAL', f"${total_cash:.2f}", f"${total_card:.2f}", f"${total_cash + total_card:.2f}"])
 
     w.writerow([])
     w.writerow(['DAILY BREAKDOWN'])

@@ -147,13 +147,24 @@
     .summary-header h2 { font-size: 15px; font-weight: 700; }
     .summary-header .wk { font-size: 12px; opacity: .8; }
     .summary-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 13px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 13px 16px; border-bottom: 1px solid var(--border); gap: 8px;
     }
     .summary-row:last-child { border-bottom: none; }
     .summary-name { font-size: 15px; font-weight: 600; }
     .summary-shifts { font-size: 11px; color: var(--muted); margin-top: 1px; }
-    .summary-amount { font-size: 20px; font-weight: 700; color: var(--green2); }
+    .summary-name-col { flex: 1; min-width: 0; }
+    .summary-amounts { display: flex; gap: 8px; flex-shrink: 0; }
+    .summary-amount-cell { text-align: right; min-width: 64px; }
+    .summary-amount { font-size: 17px; font-weight: 700; color: var(--green2); }
+    .summary-amount-label { font-size: 10px; color: var(--muted); margin-bottom: 1px; text-transform: uppercase; letter-spacing: .4px; }
+    .summary-col-headers {
+      display: flex; align-items: center; padding: 8px 16px; gap: 8px;
+      border-bottom: 1px solid var(--border); background: #FAF5F5;
+    }
+    .summary-col-headers .spacer { flex: 1; }
+    .summary-col-header { min-width: 64px; text-align: right; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
     .summary-empty { padding: 24px; text-align: center; color: var(--muted); font-size: 14px; }
 
     .print-btn {
@@ -614,17 +625,29 @@
     const monday = strToDate(data.week_start);
     const range = fmtWeekRange(monday);
 
-    const rows = data.staff.filter(s => s.amount > 0).map(s => `
+    const active = data.staff.filter(s => s.cash + s.card > 0);
+
+    const rows = active.map(s => `
       <div class="summary-row">
-        <div>
+        <div class="summary-name-col">
           <div class="summary-name">${s.name}</div>
           <div class="summary-shifts">${s.shifts} shift${s.shifts !== 1 ? 's' : ''}</div>
         </div>
-        <div class="summary-amount">${fmtMoney(s.amount)}</div>
+        <div class="summary-amounts">
+          <div class="summary-amount-cell">
+            <div class="summary-amount-label">Cash</div>
+            <div class="summary-amount">${fmtMoney(s.cash)}</div>
+          </div>
+          <div class="summary-amount-cell">
+            <div class="summary-amount-label">Card</div>
+            <div class="summary-amount">${fmtMoney(s.card)}</div>
+          </div>
+        </div>
       </div>
     `).join('');
 
-    const total = data.staff.reduce((acc, s) => acc + s.amount, 0);
+    const totalCash = data.staff.reduce((a, s) => a + s.cash, 0);
+    const totalCard = data.staff.reduce((a, s) => a + s.card, 0);
 
     container.innerHTML = `
       <div class="summary-card">
@@ -632,11 +655,25 @@
           <h2>Weekly Tips Summary</h2>
           <span class="wk">${range}</span>
         </div>
-        ${rows || '<div class="summary-empty">No data for this week yet.</div>'}
-        ${rows ? `<div class="summary-row" style="background:#FBF5F5">
-          <div><div class="summary-name" style="color:var(--muted)">Total Distributed</div></div>
-          <div class="summary-amount" style="color:var(--text)">${fmtMoney(total)}</div>
-        </div>` : ''}
+        ${active.length ? `
+          <div class="summary-col-headers">
+            <div class="spacer"></div>
+            <div class="summary-col-header">Cash</div>
+            <div class="summary-col-header">Card</div>
+          </div>
+          ${rows}
+          <div class="summary-row" style="background:#FBF5F5">
+            <div class="summary-name-col"><div class="summary-name" style="color:var(--muted)">Total</div></div>
+            <div class="summary-amounts">
+              <div class="summary-amount-cell">
+                <div class="summary-amount" style="color:var(--text)">${fmtMoney(totalCash)}</div>
+              </div>
+              <div class="summary-amount-cell">
+                <div class="summary-amount" style="color:var(--text)">${fmtMoney(totalCard)}</div>
+              </div>
+            </div>
+          </div>
+        ` : '<div class="summary-empty">No data for this week yet.</div>'}
       </div>
     `;
     document.getElementById('header-sub').textContent = range;

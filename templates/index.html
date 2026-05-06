@@ -215,6 +215,15 @@
     .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase;
       letter-spacing: .8px; color: var(--muted); margin-bottom: 10px; }
 
+    /* ── Clear day ── */
+    .clear-day-btn {
+      width: calc(100% - 28px); margin: 0 14px 12px;
+      padding: 9px; border: 1.5px solid #EAC0C0; border-radius: 8px;
+      background: #FEF2F2; color: var(--red); font-size: 13px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .clear-day-btn:active { background: #FEE2E2; }
+
     /* ── Notes ── */
     .day-note-section { padding: 8px 14px 12px; border-top: 1px solid var(--border); }
     .day-note-section textarea {
@@ -511,6 +520,10 @@
             <textarea id="note-${idx}" placeholder="Notes for this day (optional)…"
               onblur="saveNote(${idx}, '${ws}')">${noteText}</textarea>
           </div>
+          <button class="clear-day-btn" onclick="clearDay(${idx}, '${ws}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Clear this day
+          </button>
         </div>
       `;
       container.appendChild(card);
@@ -758,6 +771,19 @@
     await fetchStaff();
     renderStaffManagement();
     loadWeek();
+  }
+
+  // ── Clear day ─────────────────────────────────────────────────────────────
+
+  async function clearDay(dayIdx, ws) {
+    if (!confirm(`Clear all data for ${DAYS[dayIdx]}?`)) return;
+    await fetch(`/api/day/${ws}/${dayIdx}`, { method: 'DELETE' });
+    const res = await fetch(`/api/week/${ws}`);
+    weekData = await res.json();
+    renderDays();
+    // Re-open the day so user sees it's cleared
+    const body = document.getElementById(`day-body-${dayIdx}`);
+    if (body) body.style.display = 'block';
   }
 
   // ── Notes ─────────────────────────────────────────────────────────────────

@@ -178,6 +178,20 @@ def save_shift():
     return jsonify({'ok': True})
 
 
+# ── Clear day ─────────────────────────────────────────────────────────────────
+
+@app.route('/api/day/<week_start>/<int:day>', methods=['DELETE'])
+@login_required
+def clear_day(week_start, day):
+    shifts = Shift.query.filter_by(week_start=week_start, day=day).all()
+    for shift in shifts:
+        ShiftStaff.query.filter_by(shift_id=shift.id).delete()
+        db.session.delete(shift)
+    DayNote.query.filter_by(week_start=week_start, day=day).delete()
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
 # ── Notes ──────────────────────────────────────────────────────────────────────
 
 @app.route('/api/note', methods=['POST'])

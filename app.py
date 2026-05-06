@@ -331,6 +331,184 @@ def export_csv(week_start):
     )
 
 
+# ── CSV Transaction Import ─────────────────────────────────────────────────────
+
+@app.route('/api/import/csv', methods=['POST'])
+@login_required
+def import_transactions_csv():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+
+    f = request.files['file']
+    raw = f.read()
+    try:
+        content = raw.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        content = raw.decode('latin-1')
+
+    reader = csv.DictReader(io.StringIO(content))
+    if not reader.fieldnames:
+        return jsonify({'error': 'Empty or invalid CSV file'}), 400
+
+    fields = {name.strip().lower(): name for name in reader.fieldnames if name}
+
+    datetime_col = None
+    date_col = None
+    time_col = None
+    for key, orig in fields.items():
+        if ('date' in key and 'time' in key) or 'timestamp' in key:
+            if datetime_col is None:
+                datetime_col = orig
+        elif 'date' in key:
+            if date_col is None:
+                date_col = orig
+        elif 'time' in key:
+            if time_col is None:
+                time_col = orig
+
+    def find_col(*candidates):
+        for cand in candidates:
+            for key, orig in fields.items():
+                if cand == key or cand in key:
+                    return orig
+        return None
+
+    tip_col = find_col('tip amount', 'server tip', 'tips', 'tip', 'gratuity')
+    payment_col = find_col('payment type', 'payment method', 'tender type', 'card type', 'payment', 'tender')
+
+    if not tip_col:
+        return jsonify({'error': f'Could not find a tip column. Columns found: {", ".join(fields.keys())}'}), 400
+    if not datetime_col and not date_col:
+        return jsonify({'error': f'Could not find a date column. Columns found: {", ".join(fields.keys())}'}), 400
+
+    def parse_date(s):
+        for fmt in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%Y/%m/%d', '%m-%d-%Y']:
+            try:
+                return datetime.strptime(s.strip(), fmt).date()
+            except ValueError:
+                pass
+        return None
+
+    def parse_time(s):
+        for fmt in ['%H:%M:%S', '%H:%M', '%I:%M:%S %p', '%I:%M %p']:
+            try:
+                return datetime.strptime(s.strip(), fmt).time()
+            except ValueError:
+                pass
+        return None
+
+    def parse_datetime(s):
+        for fmt in [
+            '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M',
+            '%m/%d/%Y %H:%M:%S', '%m/%d/%Y %I:%M:%S %p',
+            '%m/%d/%Y %H:%M', '%m/%d/%Y %I:%M %p',
+            '%d/%m/%Y %H:%M:%S', '%d/%m/%Y %H:%M',
+        ]:
+            try:
+                return datetime.strptime(s.strip(), fmt)
+            except ValueError:
+                pass
+        return None
+
+    CARD_KEYWORDS = {'credit', 'card', 'visa', 'mastercard', 'amex', 'american express',
+                     'discover', 'debit', 'contactless', 'tap', 'eftpos'}
+    CASH_KEYWORDS = {'cash'}
+
+    from collections import defaultdict
+    daily = defaultdict(lambda: {'lunch': 0.0, 'dinner': 0.0, 'lunch_count': 0, 'dinner_count': 0})
+    skipped = 0
+
+    for row in reader:
+        raw_tip = (row.get(tip_col) or '').strip().lstrip('$').replace(',', '')
+        try:
+            tip = float(raw_tip) if raw_tip else 0.0
+        except ValueError:
+            skipped += 1
+            continue
+
+        if tip <= 0:
+            continue
+
+        if payment_col:
+            payment = (row.get(payment_col) or '').strip().lower()
+            if any(k in payment for k in CASH_KEYWORDS):
+                continue
+            if payment and not any(k in payment for k in CARD_KEYWORDS):
+                continue
+
+        tx_date = None
+        tx_time = None
+
+        if datetime_col:
+            dt = parse_datetime((row.get(datetime_col) or ''))
+            if dt:
+                tx_date, tx_time = dt.date(), dt.time()
+        else:
+            tx_date = parse_date(row.get(date_col) or '')
+            if time_col:
+                tx_time = parse_time(row.get(time_col) or '')
+
+        if not tx_date:
+            skipped += 1
+            continue
+
+        shift = 'lunch' if (tx_time and tx_time.hour < 17) else 'dinner'
+        date_str = tx_date.strftime('%Y-%m-%d')
+        daily[date_str][shift] += tip
+        daily[date_str][f'{shift}_count'] += 1
+
+    DAYNAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    results = []
+    for date_str in sorted(daily.keys()):
+        d = datetime.strptime(date_str, '%Y-%m-%d').date()
+        dow = d.weekday()
+        week_monday = d - timedelta(days=dow)
+        e = daily[date_str]
+        results.append({
+            'date': date_str,
+            'week_start': week_monday.strftime('%Y-%m-%d'),
+            'day_index': dow,
+            'day_name': DAYNAMES[dow],
+            'lunch_card_tips': round(e['lunch'], 2),
+            'dinner_card_tips': round(e['dinner'], 2),
+            'lunch_count': e['lunch_count'],
+            'dinner_count': e['dinner_count'],
+        })
+
+    return jsonify({
+        'results': results,
+        'skipped': skipped,
+        'tip_col': tip_col,
+        'date_col': datetime_col or date_col,
+        'payment_col': payment_col,
+    })
+
+
+@app.route('/api/import/apply', methods=['POST'])
+@login_required
+def import_apply():
+    days = (request.json or {}).get('days', [])
+    for d in days:
+        week_start = d['week_start']
+        day_idx = int(d['day_index'])
+        for shift_type in ['lunch', 'dinner']:
+            card_tips = float(d.get(f'{shift_type}_card_tips', 0))
+            if card_tips <= 0:
+                continue
+            shift = Shift.query.filter_by(
+                week_start=week_start, day=day_idx, shift_type=shift_type
+            ).first()
+            if shift:
+                shift.card_tips = card_tips
+            else:
+                db.session.add(Shift(
+                    week_start=week_start, day=day_idx,
+                    shift_type=shift_type, cash_tips=0, card_tips=card_tips
+                ))
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
 # ── Pages ──────────────────────────────────────────────────────────────────────
 
 @app.route('/')

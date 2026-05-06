@@ -259,6 +259,69 @@
     }
     #pin-error { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 18px; }
 
+    /* ── Import ── */
+    .import-drop-zone {
+      background: var(--card); border: 2px dashed var(--border); border-radius: 12px;
+      padding: 32px 16px; text-align: center; cursor: pointer; margin-bottom: 12px;
+      transition: border-color .15s, background .15s;
+    }
+    .import-drop-zone:hover, .import-drop-zone.dragging {
+      border-color: var(--mint); background: #FDF0F0;
+    }
+    .import-drop-zone svg { color: var(--mint); margin-bottom: 10px; }
+    .import-drop-text { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .import-drop-sub { font-size: 12px; color: var(--muted); }
+    .import-browse { color: var(--green2); text-decoration: underline; cursor: pointer; }
+
+    .import-info {
+      background: var(--card); border-radius: 10px; padding: 10px 14px;
+      margin-bottom: 12px; font-size: 12px; color: var(--muted);
+      display: flex; flex-wrap: wrap; gap: 6px 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .import-info b { color: var(--text); }
+    .import-warn-text { color: #D97706; }
+
+    .import-week-group {
+      background: var(--card); border-radius: 12px; margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden;
+    }
+    .import-week-header {
+      background: var(--green); color: #fff; padding: 12px 16px;
+      font-size: 14px; font-weight: 700;
+    }
+    .import-day-row {
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+    }
+    .import-day-row:last-of-type { border-bottom: none; }
+    .import-day-name { font-size: 13px; font-weight: 700; margin-bottom: 5px; }
+    .import-day-name span { font-weight: 400; color: var(--muted); margin-left: 6px; font-size: 11px; }
+    .import-shift-row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+    .import-shift-tag {
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+      padding: 2px 7px; border-radius: 10px;
+    }
+    .import-shift-tag.lunch { background: #FFF3CD; color: #856404; }
+    .import-shift-tag.dinner { background: #E8D5F5; color: #5B2D8E; }
+    .import-tip-amt { font-size: 14px; font-weight: 700; color: var(--green2); }
+    .import-count { font-size: 11px; color: var(--muted); }
+    .import-apply-btn {
+      width: calc(100% - 32px); margin: 10px 16px 14px;
+      padding: 10px; border: none; border-radius: 8px;
+      background: var(--green); color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background .15s;
+    }
+    .import-apply-btn:active { background: var(--green2); }
+    .import-apply-btn.applied { background: #40916C; }
+    .import-apply-btn:disabled { opacity: .6; cursor: default; }
+
+    .import-error {
+      background: #FEE2E2; color: var(--red); border-radius: 10px;
+      padding: 12px 14px; font-size: 13px; margin-bottom: 12px;
+    }
+    .import-loading { text-align: center; color: var(--muted); font-size: 13px; padding: 20px 0; }
+    .import-empty { text-align: center; color: var(--muted); font-size: 14px; padding: 32px 0; }
+
     /* ── Print styles ── */
     @media print {
       #app { display: block; }
@@ -335,6 +398,21 @@
       <div id="history-container"></div>
     </div>
 
+    <!-- ── TAB: IMPORT ── -->
+    <div id="tab-import" class="tab">
+      <div class="import-drop-zone" id="import-drop-zone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="36" height="36">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <div class="import-drop-text">Drop a CSV file here or <span class="import-browse" id="import-browse-btn">browse</span></div>
+        <div class="import-drop-sub">Transactions export from your POS — card tips split by lunch / dinner (5 PM cutoff)</div>
+        <input type="file" id="import-file-input" accept=".csv" style="display:none">
+      </div>
+      <div id="import-status"></div>
+      <div id="import-results"></div>
+    </div>
+
     <!-- ── TAB: STAFF ── -->
     <div id="tab-staff" class="tab">
       <p class="section-title">Add Staff</p>
@@ -365,6 +443,10 @@
     <button class="nav-btn" data-tab="staff" onclick="switchTab('staff', this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Staff
+    </button>
+    <button class="nav-btn" data-tab="import" onclick="switchTab('import', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Import
     </button>
   </nav>
 
@@ -428,7 +510,7 @@
   }
 
   function updateHeader(tab) {
-    const titles = { week: 'Tip Splitter', summary: 'Summary', history: 'History', staff: 'Staff' };
+    const titles = { week: 'Tip Splitter', summary: 'Summary', history: 'History', staff: 'Staff', import: 'Import CSV' };
     document.getElementById('header-title').textContent = titles[tab] || 'Tip Splitter';
     if (tab === 'week' || tab === 'summary') {
       document.getElementById('header-sub').textContent = fmtWeekRange(currentWeekStart);
@@ -842,6 +924,134 @@
     }
   }
 
+  // ── Import ────────────────────────────────────────────────────────────────────
+
+  let importResultsByWeek = {};
+
+  function setupImportTab() {
+    const fileInput = document.getElementById('import-file-input');
+    const dropZone  = document.getElementById('import-drop-zone');
+    const browseBtn = document.getElementById('import-browse-btn');
+
+    browseBtn.addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', e => {
+      if (e.target.files[0]) handleImportFile(e.target.files[0]);
+    });
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragging'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragging'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragging');
+      if (e.dataTransfer.files[0]) handleImportFile(e.dataTransfer.files[0]);
+    });
+  }
+
+  async function handleImportFile(file) {
+    const statusEl  = document.getElementById('import-status');
+    const resultsEl = document.getElementById('import-results');
+    statusEl.innerHTML  = '<div class="import-loading">Parsing…</div>';
+    resultsEl.innerHTML = '';
+    importResultsByWeek = {};
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    let data, res;
+    try {
+      res  = await fetch('/api/import/csv', { method: 'POST', body: fd });
+      data = await res.json();
+    } catch (err) {
+      statusEl.innerHTML = '<div class="import-error">Upload failed — please try again.</div>';
+      return;
+    }
+
+    if (!res.ok) {
+      statusEl.innerHTML = `<div class="import-error">${data.error}</div>`;
+      return;
+    }
+
+    statusEl.innerHTML = `
+      <div class="import-info">
+        <span>Tip column: <b>${data.tip_col}</b></span>
+        <span>Date column: <b>${data.date_col}</b></span>
+        ${data.payment_col
+          ? `<span>Payment filter: <b>${data.payment_col}</b></span>`
+          : '<span class="import-warn-text">No payment type column — all tip rows included</span>'}
+        ${data.skipped > 0 ? `<span class="import-warn-text">${data.skipped} rows skipped (unreadable)</span>` : ''}
+      </div>`;
+
+    if (!data.results.length) {
+      resultsEl.innerHTML = '<div class="import-empty">No card tips found in this file.</div>';
+      return;
+    }
+
+    const weeks = {};
+    data.results.forEach(r => {
+      if (!weeks[r.week_start]) weeks[r.week_start] = [];
+      weeks[r.week_start].push(r);
+    });
+
+    resultsEl.innerHTML = Object.keys(weeks).sort().map(ws => {
+      importResultsByWeek[ws] = weeks[ws];
+      const range = fmtWeekRange(strToDate(ws));
+
+      const rows = weeks[ws].map(d => `
+        <div class="import-day-row">
+          <div class="import-day-name">${d.day_name} <span>${d.date}</span></div>
+          ${d.lunch_card_tips > 0 ? `
+            <div class="import-shift-row">
+              <span class="import-shift-tag lunch">Lunch</span>
+              <span class="import-tip-amt">${fmtMoney(d.lunch_card_tips)}</span>
+              <span class="import-count">${d.lunch_count} transaction${d.lunch_count !== 1 ? 's' : ''}</span>
+            </div>` : ''}
+          ${d.dinner_card_tips > 0 ? `
+            <div class="import-shift-row">
+              <span class="import-shift-tag dinner">Dinner</span>
+              <span class="import-tip-amt">${fmtMoney(d.dinner_card_tips)}</span>
+              <span class="import-count">${d.dinner_count} transaction${d.dinner_count !== 1 ? 's' : ''}</span>
+            </div>` : ''}
+        </div>`).join('');
+
+      return `
+        <div class="import-week-group">
+          <div class="import-week-header">${range}</div>
+          ${rows}
+          <button class="import-apply-btn" id="apply-btn-${ws}" onclick="applyImport('${ws}')">
+            Save card tips for this week
+          </button>
+        </div>`;
+    }).join('');
+  }
+
+  async function applyImport(ws) {
+    const btn  = document.getElementById(`apply-btn-${ws}`);
+    const days = importResultsByWeek[ws];
+    btn.textContent = 'Saving…';
+    btn.disabled = true;
+
+    const res = await fetch('/api/import/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ days })
+    });
+
+    if (res.ok) {
+      btn.textContent = '✓ Saved!';
+      btn.classList.add('applied');
+      setTimeout(() => {
+        btn.textContent = 'Save card tips for this week';
+        btn.classList.remove('applied');
+        btn.disabled = false;
+      }, 2500);
+    } else {
+      btn.textContent = 'Error — try again';
+      btn.disabled = false;
+    }
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
 
   async function init() {
@@ -853,8 +1063,10 @@
       await fetchStaff();
       await loadWeek();
       updateHeader('week');
+      setupImportTab();
     } else {
       document.getElementById('pin-input').focus();
+      setupImportTab();
     }
   }
 

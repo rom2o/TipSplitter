@@ -4,8 +4,8 @@
   "description": "Restaurant tip calculator for your team",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F2F4F3",
-  "theme_color": "#2D6A4F",
+  "background_color": "#FAF5F5",
+  "theme_color": "#84302D",
   "orientation": "portrait",
   "icons": [
     {
